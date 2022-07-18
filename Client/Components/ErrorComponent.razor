@@ -1,0 +1,11 @@
+﻿@foreach (string error in Errors)
+{
+    <div class="alert alert-danger" role="alert">
+        @error
+    </div>
+}
+
+@code {
+    [Parameter]
+    public IEnumerable<string> Errors { get; set; } = new List<string>();
+}

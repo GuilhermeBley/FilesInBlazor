@@ -40,6 +40,14 @@ namespace FilesInBlazor.Server.Services
         Task UploadFile(string fileName, string path);
 
         /// <summary>
+        /// Upload blob in container (use stream)
+        /// </summary>
+        /// <param name="fileName">named file in container</param>
+        /// <param name="stream">stream</param>
+        /// <returns>async task</returns>
+        Task UploadFile(string fileName, Stream stream);
+
+        /// <summary>
         /// Update if exists blob in container
         /// </summary>
         /// <param name="fileName">named file in container</param>
@@ -48,10 +56,25 @@ namespace FilesInBlazor.Server.Services
         Task UpdateFile(string fileName, string path);
 
         /// <summary>
+        /// Update if exists blob in container (use stream)
+        /// </summary>
+        /// <param name="fileName">named file in container</param>
+        /// <param name="stream">stream</param>
+        /// <returns>async task</returns>
+        Task UpdateFile(string fileName, Stream stream);
+
+        /// <summary>
         /// Get all blobs of container
         /// </summary>
         /// <returns>enumerable blob items</returns>
         Task<IEnumerable<BlobItem>> GetBlobItems();
+
+        /// <summary>
+        /// Gets acess uri blob
+        /// </summary>
+        /// <param name="name">name identifier</param>
+        /// <returns><see cref="Uri"/> blob or null</returns>
+        Task<Uri?> GetUriBlobOrDefault(string fileName);
     }
 
     /// <summary>
@@ -65,7 +88,7 @@ namespace FilesInBlazor.Server.Services
         private readonly IConfiguration _configuration;
         private readonly ILogger _logger;
 
-        public BlobService(IConfiguration configuration, ILogger logger)
+        public BlobService(IConfiguration configuration, ILogger<BlobService> logger)
         {
             _configuration = configuration;
             _logger = logger;
@@ -150,6 +173,39 @@ namespace FilesInBlazor.Server.Services
             var blobClient = GetBlobClient(fileName);
 
             await blobClient.UploadAsync(path, false);
+        }
+
+        public async Task UploadFile(string fileName, Stream stream)
+        {
+            _logger.LogInformation(nameof(UploadFile));
+
+            var blobClient = GetBlobClient(fileName);
+
+            await blobClient.UploadAsync(stream, false);
+        }
+
+        public async Task UpdateFile(string fileName, Stream stream)
+        {
+            _logger.LogInformation(nameof(UpdateFile));
+
+            var blobClient = GetBlobClient(fileName);
+
+            if (!await blobClient.ExistsAsync())
+            {
+                return;
+            }
+
+            await blobClient.UploadAsync(stream, true);
+        }
+
+        public async Task<Uri?> GetUriBlobOrDefault(string fileName)
+        {
+            var clientBlob = GetBlobClient(fileName);
+            
+            if (!await clientBlob.ExistsAsync())
+                return null;
+
+            return clientBlob.Uri;
         }
 
         #region Private members

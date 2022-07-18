@@ -1,0 +1,11 @@
+﻿@foreach (string error in SucessMessages)
+{
+    <div class="alert alert-success" role="alert">
+        @error
+    </div>
+}
+
+@code {
+    [Parameter]
+    public IEnumerable<string> SucessMessages { get; set; } = new List<string>();
+}

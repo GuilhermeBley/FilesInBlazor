@@ -1,0 +1,73 @@
+﻿@using System.Linq
+@using FilesInBlazor.Shared
+
+<p>
+    <label>
+        Upload de até @MaxAllowedFiles arquivos:
+        <InputFile OnChange="@OnInputFileChange" multiple />
+    </label>
+</p>
+
+@code {
+
+    [Parameter]
+    public EventCallback<IEnumerable<IBrowserFile>> OnValidFiles { get; set; }
+
+    [Parameter]
+    public List<string> Errors { get; set; } = new();
+
+    [Parameter]
+    public int MaxAllowedFiles { get; set; } = 10;
+
+    [Parameter]
+    public long MaxFileSize { get; set; } = 1024 * 1024;
+
+    private bool InProgress;
+
+    protected override bool ShouldRender() => !InProgress;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+    }
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        Errors.Clear();
+
+        try
+        {
+            InProgress = true;
+            List<string> fileNames = new();
+
+            foreach (var file in e.GetMultipleFiles(MaxAllowedFiles))
+            {
+
+                if (fileNames.Contains(file.Name))
+                {
+                    Errors.Add($"Arquivo {file.Name} contém nome repetido.");
+                }
+
+                if (file.Size > MaxFileSize)
+                {
+                    Errors.Add($"Arquivo {file.Name} contém tamanho inválido, não deve ser maior que {file.Size / 1000}KB.");
+                }
+
+                if (file.Size < 1)
+                {
+                    Errors.Add($"Arquivo {file.Name} contém tamanho inválido, deve ser maior que {0}B.");
+                }
+
+                fileNames.Add(file.Name);
+            }
+        }
+        finally
+        {
+            InProgress = false;
+        }
+
+        // Is valid only if don't have errors
+        if (!Errors.Any())
+            await OnValidFiles.InvokeAsync(e.GetMultipleFiles(MaxAllowedFiles));
+    }
+}

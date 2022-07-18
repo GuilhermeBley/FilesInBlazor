@@ -1,6 +1,30 @@
-﻿@page "/"
+﻿@using FilesInBlazor.Client.Components;
+
+@page "/"
+@inject HttpClient Client;
 
 <PageTitle>Home</PageTitle>
 
-Welcome to your new app.
+<ErrorComponent Errors="Errors"></ErrorComponent>
 
+<UploadComponent OnValidFiles="@UploadFiles" Errors="Errors"></UploadComponent>
+
+
+@code {
+    private List<string> Errors { get; set; } = new();
+
+    private async Task UploadFiles(IEnumerable<IBrowserFile> files)
+    {
+        var fileContent = new StreamContent(file.OpenReadStream(maxFileSize));
+
+        fileContent.Headers.ContentType =
+            new MediaTypeHeaderValue(file.ContentType);
+
+        files.Add(new() { Name = file.Name });
+
+        content.Add(
+            content: fileContent,
+            name: "\"files\"",
+            fileName: file.Name);
+    }
+}

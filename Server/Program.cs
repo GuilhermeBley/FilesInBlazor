@@ -5,10 +5,17 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllers();
 builder.Services.AddRazorPages();
 
-builder.Services.AddScoped<IBlobService, BlobService>();
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+
+builder.Services.AddAutoMapper(typeof(Program));
+
+builder.Services
+    .AddSingleton<IConfiguration>(builder.Configuration)
+    .AddScoped<IBlobService, BlobService>();
 
 var app = builder.Build();
 
@@ -30,7 +37,6 @@ app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
 app.UseRouting();
-
 
 app.MapRazorPages();
 app.MapControllers();
