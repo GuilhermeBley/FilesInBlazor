@@ -36,7 +36,7 @@ public class BlobController : ControllerBase
     }
 
     [HttpGet, Route("uri")]
-    public async Task<ActionResult<IEnumerable<BlobInfoDto>>> GetUri(string fileName)
+    public async Task<ActionResult<string>> GetUri(string fileName)
     {
         try
         {
@@ -45,7 +45,7 @@ public class BlobController : ControllerBase
             if (result is null)
                 return NotFound();
 
-            return Ok(result.AbsolutePath);
+            return Ok(result.AbsoluteUri);
         }
         catch (Exception)
         {
@@ -53,12 +53,12 @@ public class BlobController : ControllerBase
         }
     }
 
-    [HttpPost]
-    public async Task<ActionResult> Post(IEnumerable<IFormFile> formsfiles)
+    [HttpPost, Consumes("multipart/form-data")]
+    public async Task<ActionResult<FileUploadResponses>> Post([FromForm]IEnumerable<IFormFile> formFiles)
     {
         List<FileUploadResponse> fileResponseList = new();
 
-        foreach (IFormFile formFile in formsfiles)
+        foreach (IFormFile formFile in formFiles)
         {
             FileUploadResponse fileResponse = new()
             {
@@ -98,5 +98,11 @@ public class BlobController : ControllerBase
             return BadRequest("Nenhum arquivo adicionado.");
 
         return Ok(new FileUploadResponses { Files= fileResponseList });
+    }
+
+    [HttpDelete]
+    public async Task<ActionResult> Delete([FromQuery] string fileName)
+    {
+        return Ok();   
     }
 }

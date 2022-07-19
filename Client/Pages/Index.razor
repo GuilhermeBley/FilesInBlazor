@@ -1,30 +1,214 @@
 ﻿@using FilesInBlazor.Client.Components;
+@using FilesInBlazor.Shared
+@using System.Net.Http.Headers
 
 @page "/"
 @inject HttpClient Client;
+@inject NavigationManager Navigation;
 
 <PageTitle>Home</PageTitle>
+
+<LoadComponent Show="@IsLoading"></LoadComponent>
 
 <ErrorComponent Errors="Errors"></ErrorComponent>
 
 <UploadComponent OnValidFiles="@UploadFiles" Errors="Errors"></UploadComponent>
 
+@*Veiculos show*@
+@if (BlobInfoDtos.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th scope="col">Nome</th>
+                <th scope="col">Tamanho</th>
+                <th scope="col">Ultima modificação</th>
+                <th scope="col">Data de criação</th>
+                <th scope="col">Tipo de conteúdo</th>
+                <th scope="col"></th>
+                <th scope="col"></th>
+            </tr>
+        </thead>
+        @foreach (var blobDto in BlobInfoDtos)
+        {
+            <tbody>
+                <tr>
+                    <td>@blobDto.Name</td>
+                    <td>@(blobDto.Size/1000) KB</td>
+                    <td>@(blobDto.CreateOn.HasValue ? blobDto.CreateOn.Value.ToString("dd/MM/yyyy hh:mm:ss") : "-")</td>
+                    <td>@(blobDto.LastModify.HasValue ? blobDto.LastModify.Value.ToString("dd/MM/yyyy hh:mm:ss") : "-")</td>
+                    <td>@blobDto.ContentType</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-secondary" title="Download" onclick="@(()=>DownloadData(blobDto.Name))">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-arrow-down" viewBox="0 0 16 16">
+                                <path d="M8.5 6.5a.5.5 0 0 0-1 0v3.793L6.354 9.146a.5.5 0 1 0-.708.708l2 2a.5.5 0 0 0 .708 0l2-2a.5.5 0 0 0-.708-.708L8.5 10.293V6.5z" />
+                                <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z" />
+                            </svg>
+                        </button>
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-outline-danger" title="Excluir" onclick="@(()=>{ DeleteItem=blobDto.Name; StateHasChanged(); })">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" fill="currentColor" height="16" class="bi bi-x-square" viewBox="0 0 16 16">
+                                <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z" />
+                                <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z" />
+                            </svg>
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        }
+    </table>
+}
+
+@if (DeleteItem is not null)
+{
+    <div class="modal fade show" id="myModal" style="display:block; background-color: rgba(10,10,10,.8);" aria-modal="true" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Exclusão de arquivo</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="@(()=>{ DeleteItem = null; StateHasChanged(); })">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Deseja excluir o arquivo @DeleteItem?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="@(async ()=> { await DeleteFile(DeleteItem); DeleteItem = null; StateHasChanged(); })">Excluir</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="@(()=>{ DeleteItem = null; StateHasChanged(); })">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private List<string> Errors { get; set; } = new();
 
+    private IEnumerable<BlobInfoDto> BlobInfoDtos { get; set; } = new List<BlobInfoDto>();
+    private bool IsLoading { get; set; } = false;
+
+    private int MaxAllowedFiles { get; set; } = 10;
+
+    private long MaxFileSize { get; set; } = 1024 * 1024;
+    private string? DeleteItem { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        BlobInfoDtos = await GetFiles();
+    }
+
     private async Task UploadFiles(IEnumerable<IBrowserFile> files)
     {
-        var fileContent = new StreamContent(file.OpenReadStream(maxFileSize));
+        try
+        {
+            IsLoading = true;
 
-        fileContent.Headers.ContentType =
-            new MediaTypeHeaderValue(file.ContentType);
+            FileUploadResponses uploadResponses = new();
 
-        files.Add(new() { Name = file.Name });
+            using (var content = new MultipartFormDataContent())
+            {
+                foreach (var file in files)
+                {
+                    var fileContent = new StreamContent(file.OpenReadStream(MaxFileSize));
 
-        content.Add(
-            content: fileContent,
-            name: "\"files\"",
-            fileName: file.Name);
+                    fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+
+                    content.Add(
+                        content: fileContent,
+                        name: "formFiles",
+                        fileName: file.Name
+                    );
+                }
+
+                var response = await Client.PostAsync("/api/blob", content);
+
+                uploadResponses = await response.Content.ReadFromJsonAsync<FileUploadResponses>() ?? new();
+            }
+
+            BlobInfoDtos = await GetFiles();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task<IEnumerable<BlobInfoDto>> GetFiles()
+    {
+        try
+        {
+            IsLoading = true;
+
+            IEnumerable<BlobInfoDto> list = new List<BlobInfoDto>();
+
+            using (var response = await Client.GetAsync("api/blob/all"))
+            {
+                try
+                {
+                    list = await response.Content.ReadFromJsonAsync<IEnumerable<BlobInfoDto>>() ?? new List<BlobInfoDto>();
+                }
+                catch
+                {
+                    Errors.Add("Falha ao coletar dados de arquivos.");
+                }
+            }
+
+            return list;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task DeleteFile(string fileName)
+    {
+        try
+        {
+            IsLoading = true;
+
+            using (var response = await Client.DeleteAsync($"api/blob?fileName={fileName}"))
+            {
+                if (!response.IsSuccessStatusCode)
+                {
+                    Errors.Add($"Falha em deletar arquivo {fileName}.");
+                    return;
+                }
+            }
+
+            BlobInfoDtos = await GetFiles();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task DownloadData(string fileName)
+    {
+        try
+        {
+            IsLoading = true;
+
+            using (var response = await Client.GetAsync($"api/blob/uri?fileName={fileName}"))
+            {
+                if (!response.IsSuccessStatusCode)
+                {
+                    Errors.Add($"Falha em acessar arquivo {fileName}.");
+                    return;
+                }
+
+                var urlAcess = await response.Content.ReadAsStringAsync();
+
+                Navigation.NavigateTo(urlAcess);
+            }
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 }

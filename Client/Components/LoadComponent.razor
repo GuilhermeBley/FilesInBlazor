@@ -1,0 +1,15 @@
+﻿@if (Show)
+{
+    <div class="modal fade show" id="myModalLoading" style="display:block; background-color: rgba(10,10,10,.8);" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-xl text-center" role="document">
+            <div class="spinner-border m-5" role="status">
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public bool Show { get; set; }
+}
