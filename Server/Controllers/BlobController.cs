@@ -103,6 +103,15 @@ public class BlobController : ControllerBase
     [HttpDelete]
     public async Task<ActionResult> Delete([FromQuery] string fileName)
     {
+        try
+        {
+            await _blobService.DeleteFile(fileName);
+        }
+        catch
+        {
+            return BadRequest($"Falha em excluir arquivo {fileName}.");
+        }
+
         return Ok();   
     }
 }
