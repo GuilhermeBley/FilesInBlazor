@@ -12,7 +12,9 @@
 
 <ErrorComponent Errors="Errors"></ErrorComponent>
 
-<UploadComponent OnValidFiles="@UploadFiles" Errors="Errors"></UploadComponent>
+<div id="upload-area">
+    <UploadComponent OnValidFiles="@UploadFiles" Errors="Errors"></UploadComponent>
+</div>
 
 @*Veiculos show*@
 @if (BlobInfoDtos.Any())
@@ -102,6 +104,7 @@
 
     private async Task UploadFiles(IEnumerable<IBrowserFile> files)
     {
+        Errors.Clear();
         try
         {
             IsLoading = true;
@@ -125,7 +128,11 @@
 
                 var response = await Client.PostAsync("/api/blob", content);
 
-                uploadResponses = await response.Content.ReadFromJsonAsync<FileUploadResponses>() ?? new();
+                if (!response.IsSuccessStatusCode)
+                {
+                    Errors.Add("Falha em upload de arquivos.");
+                    return;
+                }
             }
 
             BlobInfoDtos = await GetFiles();
@@ -133,6 +140,7 @@
         finally
         {
             IsLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -161,6 +169,7 @@
         finally
         {
             IsLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -184,6 +193,7 @@
         finally
         {
             IsLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -209,6 +219,7 @@
         finally
         {
             IsLoading = false;
+            StateHasChanged();
         }
     }
 }
