@@ -26,7 +26,7 @@
     public int MaxAllowedFiles { get; set; } = 10;
 
     [Parameter]
-    public long MaxFileSize { get; set; } = 1024 * 1024; // 1MB
+    public long MaxFileSize { get; set; } = 10 * 1024 * 1024; // 10 MB
 
     private List<string> FileNames { get; set; } = new();
 
